@@ -1,0 +1,576 @@
+---
+title: "HW 05"
+author: "Usama Ahmed"
+format: 
+  html:
+    embed-resources: true
+    code-fold: true
+    fig_retina: 1
+toc: true
+---
+
+## 0 - Setup
+
+```{r, include = FALSE}
+#| label: setup
+
+
+if (!require("pacman")) 
+  install.packages("pacman")
+
+# use this line for installing/loading
+pacman::p_load(tidyverse,
+               gridExtra,
+               grid,
+               gtable,
+               ggpubr,
+               ggmap,
+               ggrepel,
+               patchwork,
+               units,
+               data.table,
+               devtools,
+               tibble,
+               here,
+               stringr,
+               janitor,
+               ragg,
+               ggthemes,
+               cowplot,
+               broom,
+               scales,
+               gganimate,
+               colorspace,
+               showtext,
+               ggimage,
+               likert,
+               kableExtra) 
+
+# Set themes/layouts of html file
+
+ggplot2::theme_set(ggplot2::theme_minimal(base_size = 14))
+
+options(width = 65)
+ 
+knitr::opts_chunk$set(
+  fig.width = 7,
+  fig.asp = 0.618,
+  fig.retina = 3,
+  fig.align = "center",
+  dpi = 300,
+  warning = FALSE,
+  message = FALSE
+)
+
+
+
+```
+
+## 1 - Key lyme pie
+
+```{r}
+#| label: Key lyme pie-chart
+#| fig-alt: "The image depicts a pie chart showing the distribution of 2018 reported Lyme disease cases in the United States by state. The chart highlights that Pennsylvania had a significantly higher number of cases compared to other states. This information underscores the importance of analyzing and preventing Lyme disease in Pennsylvania."
+
+# Create the data frame
+
+state <- c("Pennsylvania","New Jersey","New York*","Wisconsin","Connecticut","Minnesota",
+          "New Hampshire","Maine","Maryland","Virginia","Rhode Island","West Virginia","Vermont",
+          "Delaware","Ohio","Remaining States + DC")
+
+cases <- c(10208,4000,3638,1869,1859,1541,1428,1405,1382,1139,1111,671,576,
+           520,293,2026)
+
+df <- tibble(state = state,
+             cases = cases) |>
+  arrange(desc(cases)) |>
+  filter(state != "Remaining States + DC")
+
+# Data preprocessing
+
+df$state <- factor(df$state, levels = df$state[order(df$cases, decreasing = TRUE)])
+
+sum_total <- sum(df$cases)
+
+df$percent <- 100*round(df$cases/sum_total,3)
+
+diverging_palette <- hcl.colors(16, palette = "Blue-Red")
+
+fix <- tibble(state = "Remaining States + DC",
+              cases = 2026,
+              percent = 6.0)
+
+df <- rbind(df,fix)
+
+# Plot
+
+ggplot(df, aes(x = "", y = cases, fill = state)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  scale_fill_manual(values = diverging_palette) +
+  theme_minimal() +
+  labs(x = NULL,
+       y = NULL,
+       fill = NULL,
+       color = NULL,
+       title = "               Lyme Disease Association Lyme Disease Analysis",
+       subtitle = "2018 US Reported Lyme Disease Cases Featuring Top 15 States",
+       caption = "U.S.TOTAL CASES 2018: 33,666\nSource data compiled from CDC pub, data (DVBD)") +
+  theme(legend.position = "right",
+        legend.box.margin = margin(r = 30),
+        legend.box.background = element_rect(color = "black", fill = NA, size = 0.4), 
+        axis.text = element_blank(),
+        plot.title = element_text(hjust = 0.5,
+                                  size = 11),
+        panel.grid.major.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        plot.caption = element_text(hjust = 0, 
+                                    margin = margin(r = 20),
+                                    size = 8)) +
+  guides(fill = guide_legend(keywidth = 0.8, keyheight = 0.8)) 
+  
+
+
+
+```
+
+```{r}
+#| label: Key lyme bar-plot
+#| fig-alt: "The image depicts a bar chart illustrating the reported cases of Lyme disease in 2018 across various U.S. states. Notably, Pennsylvania had the highest number of cases. The chart uses varying shades of color to indicate the number of cases in each state, with annotations for clarity and emphasis on states with the highest reported cases."
+
+# Add a highlight column
+
+df$highlight <- ifelse(df$state == "Connecticut", "Connecticut", "Other States")
+
+diverging_palette <- hcl.colors(2, palette = "Dark2")
+
+# Plot
+
+ggplot(df, aes(x = reorder(state, cases), y = cases, fill = highlight)) +
+  geom_bar(stat = "identity", width = 1, color = "black") +
+  scale_fill_manual(values = c("Connecticut" = "yellow", "Other States" = "skyblue")) +
+  theme_minimal() +
+  labs(x = NULL,
+       y = NULL,
+       fill = NULL,
+       color = NULL,
+       title = "Lyme Disease Association Lyme Disease Analysis                            ",
+       subtitle = "2018 US Reported Lyme Disease Cases Featuring Top 15 States",
+       caption = "U.S.TOTAL CASES 2018: 33,666\nSource data compiled from CDC pub, data (DVBD)") +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5, size = 11),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        plot.caption = element_text(hjust = 0, margin = margin(t = 1, unit = "lines"), size = 8)) +
+  guides(fill = guide_legend(keywidth = 0.8, keyheight = 0.8)) +
+  coord_flip()
+
+```
+
+I cannot use separate colors for all states because it would defeat the purpose of highlight. We would not be able to recognize which state is highlighted. Therefore, I needed to set the other states to one color and Connecticut to another color.
+
+Moreover, I needed to use contrasting colors for Connecticut and other states so that it will pop up Connecticut even more.
+
+## 2 - COVID survey - interpret
+
+Middle-aged individuals, specifically those between 21 and 30 years old, often exhibit a heightened trust and confidence in the safety and scientific scrutiny of COVID-19 vaccines when compared to younger age groups. This inclination may stem from their increased exposure to healthcare information, potentially due to their jobs or other factors, leading to a more informed perspective or a heightened risk perception regarding COVID-19.
+
+In contrast, there's a notable disparity between trust levels among healthcare professionals based on their specific roles. Nurses tend to display higher levels of trust and confidence in the vaccine's safety and scientific vetting processes compared to their counterparts in the medical field. This distinction could be attributed to nurses' direct involvement and firsthand experience with the impacts of COVID-19, which likely fosters a deeper appreciation for the importance and efficacy of vaccination efforts.
+
+Furthermore, a significant divide emerges when considering individuals who have received the COVID-19 vaccine versus those who have not. Those who have been vaccinated consistently express trust in the safety and scientific validation of the vaccine, although they may harbor some reservations regarding potential side effects. On the other hand, the opinions of those who have not received the vaccine exhibit more variability and ambivalence. This variability suggests a lack of certainty or confidence among individuals who have not been vaccinated, highlighting the need for targeted education and outreach efforts to address their concerns and encourage informed decision-making regarding vaccination.
+
+
+## 3 - COVID survey - reconstruct
+
+```{r}
+#| label: COVID survey reconstruct (1)
+
+# Load Data
+
+df_2 <- read_csv(here("data","covid-survey.csv"), skip = 1)
+
+print(dim(df_2))
+
+# Remove NAs
+
+na_count <- rowSums(is.na(df_2))
+
+df_2 <- subset(df_2, na_count < ncol(df_2) - 1)
+
+print(dim(df_2))
+
+# Relabel survery response 
+
+df_2$exp_already_vax <- factor(df_2$exp_already_vax, levels = c(0, 1), labels = c("No", "Yes"))
+df_2$exp_flu_vax <- factor(df_2$exp_flu_vax, levels = c(0, 1), labels = c("No", "Yes"))
+df_2$exp_profession <- factor(df_2$exp_profession, levels = c(0, 1), labels = c("Medical", "Nursing"))
+df_2$exp_gender <- factor(df_2$exp_gender, levels = c(0, 1, 3, 4), labels = c("Male", "Female", "Non-binary third gender", "Prefer not to say"))
+df_2$exp_race <- factor(df_2$exp_race, levels = c(1, 2, 3, 4, 5), labels = c("American Indian / Alaskan Native", "Asian", "Black / African American", "Native Hawaiian / Other Pacific Islander", "White"))
+df_2$exp_ethnicity <- factor(df_2$exp_ethnicity, levels = c(1, 2), labels = c("Hispanic / Latino", "Non-Hispanic/Non-Latino"))
+df_2$exp_age_bin <- factor(df_2$exp_age_bin, levels = c(0, 20, 25, 30), labels = c("<20", "21-25", "26-30", ">30"))
+
+
+print(dim(df_2))
+
+# Reshape the data frame 
+
+covid_survey_longer <- df_2 |>
+  pivot_longer(
+    cols = starts_with("exp_"),
+    names_to = "explanatory",
+    values_to = "explanatory_value"
+  ) |>
+  filter(!is.na(explanatory_value)) |>
+  pivot_longer(
+    cols = starts_with("resp_"),
+    names_to = "response",
+    values_to = "response_value"
+  )
+
+print(covid_survey_longer)
+
+```
+
+**What the pivot longer statements are doing?**
+
+-   First statement: This statement pivots the data frame from wide to long format by gathering columns that start with "exp" into two new columns, `explanatory` (original column names)and `explanatory_value` (containing the value from these columns). It also filters out the rows where `explanatory_value` column has NA values
+
+-   Second statement: This statement further pivots the already transformed data frame by gathering columns that start with "resp\_" into two new columns, `response` (containing the original column name) and `response_value` (containing the value from those columns)
+
+```{r}
+#| label: COVID survey reconstruct (2)
+
+# Group by explanatory, explanatory_value, and response, then calculate summary statistics
+
+covid_survey_summary_stats_by_group <- covid_survey_longer %>%
+  group_by(explanatory, explanatory_value, response) %>%
+  summarise(
+    mean = round(mean(response_value, na.rm = TRUE),2),
+    low = quantile(response_value, probs = 0.1, na.rm = TRUE),
+    high = quantile(response_value, probs = 0.9, na.rm = TRUE)
+  )
+
+print(covid_survey_summary_stats_by_group)
+
+# Group by response and calculate summary statistics
+
+covid_survey_summary_stats_all <- covid_survey_longer %>%
+  group_by(response) %>%
+  summarise(
+    mean = round(mean(response_value, na.rm = TRUE),2),
+    low = quantile(response_value, probs = 0.1, na.rm = TRUE),
+    high = quantile(response_value, probs = 0.9, na.rm = TRUE)
+  )
+
+covid_survey_summary_stats_all$explanatory <- "All"
+covid_survey_summary_stats_all$explanatory_value <- as.factor("")
+
+print(covid_survey_summary_stats_all)
+
+
+# rbind data frames
+
+covid_survey_summary_stats <- rbind(covid_survey_summary_stats_all, covid_survey_summary_stats_by_group)
+
+
+print(covid_survey_summary_stats)
+
+
+
+
+```
+
+```{r, fig.width=12, fig.asp=0.8}
+#| label: COVID survey reconstruct plot
+#| fig-alt: "The chart depicts responses to statements regarding COVID-19 vaccination across various demographic categories, including age, gender, race, ethnicity, profession, and vaccination history. Each demographic group's sentiment towards six statements related to vaccine safety, efficacy, and trust is shown through horizontal bars representing mean Likert scores ranging from 1 to 5. Error bars extending from the 10th to 90th percentile offer insights into response variability within each group. The statements cover beliefs about safety, confidence in scientific vetting, trust in vaccine information, and willingness to recommend vaccines to others, providing a comprehensive view of attitudes towards COVID-19 vaccination within diverse population segments."
+
+# data wrangling for the plot
+
+covid_survey_summary_stats <- covid_survey_summary_stats |>
+  mutate(explanatory_value = case_when(explanatory == "exp_already_vax" 
+                                       & explanatory_value == "Yes" ~ " Yes",
+                                       explanatory == "exp_already_vax" 
+                                       & explanatory_value == "No" ~ " No",
+                                       TRUE ~ explanatory_value))
+
+
+covid_survey_summary_stats$explanatory <- factor(covid_survey_summary_stats$explanatory, 
+                                                 levels = c("exp_flu_vax",
+                                                            "exp_already_vax",
+                                                            "exp_profession",
+                                                            "exp_ethnicity",
+                                                            "exp_race",
+                                                            "exp_gender",
+                                                            "exp_age_bin",
+                                                            "All"
+                                                            ))
+
+covid_survey_summary_stats <- covid_survey_summary_stats |>
+  mutate(explanatory_value = factor(explanatory_value, 
+                                    levels = unique(explanatory_value[order(explanatory)])))
+
+
+covid_survey_summary_stats$response <- factor(covid_survey_summary_stats$response, 
+                                                 levels = c("resp_safety",
+                                                            "resp_feel_safe_at_work",
+                                                            "resp_concern_safety",
+                                                            "resp_confidence_science",
+                                                            "resp_trust_info",
+                                                            "resp_will_recommend"
+                                                            ))
+
+
+covid_survey_summary_stats <- covid_survey_summary_stats |>
+  mutate(response = case_when(response == "resp_safety" ~ "Based on my understanding, I believe the vaccine is safe",
+                              response == "resp_feel_safe_at_work" ~ "Getting the vaccine will make me feel safer at work",
+                              response == "resp_concern_safety" ~ "I am concerned about the safety and side effects of the vaccine",
+                              response == "resp_confidence_science" ~ "I am confident in the scientific vetting process for the new COVID vaccines",
+                              response == "resp_trust_info" ~ "I trust the information that I have received about the vaccines",
+                              response == "resp_will_recommend" ~ "I will recommend the vaccine to family, friends, and community members"))
+
+covid_survey_summary_stats <- covid_survey_summary_stats |>
+  mutate(explanatory = case_when(explanatory == "exp_age_bin" ~ "Age",
+                                 explanatory == "exp_gender" ~ "Gender",
+                                 explanatory == "exp_race" ~ "Race",
+                                 explanatory == "exp_ethnicity" ~ "Ethnicity",
+                                 explanatory == "exp_profession" ~ "Profession",
+                                 explanatory == "exp_already_vax" ~ "Had COVID vaccine",
+                                 explanatory == "exp_flu_vax" ~ "Had flu vaccine this year",
+                                 explanatory == "All" ~ "All"))
+
+covid_survey_summary_stats$explanatory <- factor(covid_survey_summary_stats$explanatory,
+                                                 levels = c("All",
+                                                            "Age",
+                                                            "Gender",
+                                                            "Race",
+                                                            "Ethnicity",
+                                                            "Profession",
+                                                            "Had COVID vaccine",
+                                                            "Had flu vaccine this year")) 
+
+# plot
+
+ggplot(covid_survey_summary_stats, aes(x = mean, y = explanatory_value)) +
+  geom_point() +
+  geom_errorbar(aes(xmin = low, xmax = high),
+                width = 0.2, 
+                position = position_dodge(width = 0.9)) +
+  facet_grid(explanatory ~ response, scales = "free_y", axis.labels = "margins",
+             labeller = labeller(response = label_wrap_gen(20),
+                                 explanatory = label_wrap_gen(15)
+                                 )) +
+  labs(x = "Mean Likert score\n(Error bars range from 10th to 90th percentile)", 
+       y = "") +
+  theme_minimal() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.background = element_rect(color = "black", fill = "gray90"),
+        strip.text.y.right = element_text(angle = 0))
+
+```
+
+## 4 - COVID survey - re-reconstruct
+
+```{r, fig.width=12, fig.asp=0.8}
+#| label: Construct at 25th and 75th percentile
+#| fig-alt: "The chart depicts responses to statements regarding COVID-19 vaccination across various demographic categories, including age, gender, race, ethnicity, profession, and vaccination history. Each demographic group's sentiment towards six statements related to vaccine safety, efficacy, and trust is shown through horizontal bars representing mean Likert scores ranging from 1 to 5. Error bars extending from the 25th to 75th percentile offer insights into response variability within each group. The statements cover beliefs about safety, confidence in scientific vetting, trust in vaccine information, and willingness to recommend vaccines to others, providing a comprehensive view of attitudes towards COVID-19 vaccination within diverse population segments."
+
+# Group by explanatory, explanatory_value, and response, then calculate summary statistics with 25th and 75th percentiles
+
+covid_survey_summary_stats_by_group <- covid_survey_longer %>%
+  group_by(explanatory, explanatory_value, response) %>%
+  summarise(
+    mean = round(mean(response_value, na.rm = TRUE), 2),
+    low = quantile(response_value, probs = 0.25, na.rm = TRUE),  # Changed to 25th percentile
+    high = quantile(response_value, probs = 0.75, na.rm = TRUE)  # Changed to 75th percentile
+  )
+
+# Group by response and calculate summary statistics with 25th and 75th percentiles
+
+covid_survey_summary_stats_all <- covid_survey_longer %>%
+  group_by(response) %>%
+  summarise(
+    mean = round(mean(response_value, na.rm = TRUE), 2),
+    low = quantile(response_value, probs = 0.25, na.rm = TRUE),  # Changed to 25th percentile
+    high = quantile(response_value, probs = 0.75, na.rm = TRUE)  # Changed to 75th percentile
+  )
+
+covid_survey_summary_stats_all$explanatory <- "All"
+covid_survey_summary_stats_all$explanatory_value <- as.factor("")
+
+# rbind data frames
+
+covid_survey_summary_stats <- rbind(covid_survey_summary_stats_all, covid_survey_summary_stats_by_group)
+
+# data wrangling for the plot
+
+covid_survey_summary_stats <- covid_survey_summary_stats |>
+  mutate(explanatory_value = case_when(explanatory == "exp_already_vax" 
+                                       & explanatory_value == "Yes" ~ " Yes",
+                                       explanatory == "exp_already_vax" 
+                                       & explanatory_value == "No" ~ " No",
+                                       TRUE ~ explanatory_value))
+
+
+covid_survey_summary_stats$explanatory <- factor(covid_survey_summary_stats$explanatory, 
+                                                 levels = c("exp_flu_vax",
+                                                            "exp_already_vax",
+                                                            "exp_profession",
+                                                            "exp_ethnicity",
+                                                            "exp_race",
+                                                            "exp_gender",
+                                                            "exp_age_bin",
+                                                            "All"
+                                                            ))
+
+covid_survey_summary_stats <- covid_survey_summary_stats |>
+  mutate(explanatory_value = factor(explanatory_value, 
+                                    levels = unique(explanatory_value[order(explanatory)])))
+
+
+covid_survey_summary_stats$response <- factor(covid_survey_summary_stats$response, 
+                                                 levels = c("resp_safety",
+                                                            "resp_feel_safe_at_work",
+                                                            "resp_concern_safety",
+                                                            "resp_confidence_science",
+                                                            "resp_trust_info",
+                                                            "resp_will_recommend"
+                                                            ))
+
+
+covid_survey_summary_stats <- covid_survey_summary_stats |>
+  mutate(response = case_when(response == "resp_safety" ~ "Based on my understanding, I believe the vaccine is safe",
+                              response == "resp_feel_safe_at_work" ~ "Getting the vaccine will make me feel safer at work",
+                              response == "resp_concern_safety" ~ "I am concerned about the safety and side effects of the vaccine",
+                              response == "resp_confidence_science" ~ "I am confident in the scientific vetting process for the new COVID vaccines",
+                              response == "resp_trust_info" ~ "I trust the information that I have received about the vaccines",
+                              response == "resp_will_recommend" ~ "I will recommend the vaccine to family, friends, and community members"))
+
+covid_survey_summary_stats <- covid_survey_summary_stats |>
+  mutate(explanatory = case_when(explanatory == "exp_age_bin" ~ "Age",
+                                 explanatory == "exp_gender" ~ "Gender",
+                                 explanatory == "exp_race" ~ "Race",
+                                 explanatory == "exp_ethnicity" ~ "Ethnicity",
+                                 explanatory == "exp_profession" ~ "Profession",
+                                 explanatory == "exp_already_vax" ~ "Had COVID vaccine",
+                                 explanatory == "exp_flu_vax" ~ "Had flu vaccine this year",
+                                 explanatory == "All" ~ "All"))
+
+covid_survey_summary_stats$explanatory <- factor(covid_survey_summary_stats$explanatory,
+                                                 levels = c("All",
+                                                            "Age",
+                                                            "Gender",
+                                                            "Race",
+                                                            "Ethnicity",
+                                                            "Profession",
+                                                            "Had COVID vaccine",
+                                                            "Had flu vaccine this year")) 
+
+
+# Adjusted plot with 25th and 75th percentiles
+
+ggplot(covid_survey_summary_stats, aes(x = mean, y = explanatory_value)) +
+  geom_point() +
+  geom_errorbar(aes(xmin = low, xmax = high),
+                width = 0.2, 
+                position = position_dodge(width = 0.9)) +
+  facet_grid(explanatory ~ response, scales = "free_y", axis.labels = "margins",
+             labeller = labeller(response = label_wrap_gen(20),
+                                 explanatory = label_wrap_gen(15))) +
+  labs(x = "Mean Likert score\n(Error bars range from 25th to 75th percentile)", 
+       y = "") +
+  theme_minimal() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.background = element_rect(color = "black", fill = "gray90"),
+        strip.text.y.right = element_text(angle = 0))
+
+
+
+
+```
+
+In Plot 1, the visualization underscores the considerable variance in opinions regarding COVID-19 vaccines, hinting at potential influences from various demographic factors like age, gender, profession, and prior COVID experience. The wide error bars suggest a significant divergence of views, indicating that different demographic groups may perceive and trust the vaccine differently. This aligns with our earlier discussion on age groups, where middle-aged individuals (21-30 years) exhibited higher trust compared to younger cohorts.
+
+Plot 2, with its narrower error bars extending from the 25th to the 75th percentile, paints a contrasting picture. Here, the reduced variability implies more uniformity and consistency in opinions across demographics. This suggests a more unified perception regarding the safety and efficacy of COVID-19 vaccines within these groups.
+
+Despite these patterns, there are nuanced shifts within demographics. While the conclusion regarding professions remains consistent, with nurses generally exhibiting higher trust, there's a notable insight regarding individuals who haven't received the COVID vaccine. The data suggests that this group leans more towards skepticism or disagreement regarding the vaccine, which wasn't as apparent in the 10th to 90th percentile plot.
+
+Regarding age demographics, the data reveals an interesting division. The 21-25 age group shows a higher inclination towards the vaccine compared to the 25-30 age group. This observation introduces a new delineation within the age brackets, highlighting potential variations in trust and perception even within relatively close age ranges.
+
+## 5 - COVID survey - another view
+
+```{r, fig.width=12, fig.asp=0.9}
+#| label: diverging and stacked barplot
+#| fig-alt: "The image shows two types of data visualizations regarding opinions on COVID-19 vaccination. Part (a) has a diverging bar chart with colored bars representing responses on a scale from 1 to 5, indicating levels of agreement. Part (b) displays the same data in a vertical stacked bar chart format, showing percentages of agreement/disagreement for each statement. Both visuals offer insights into public attitudes toward COVID-19 vaccination."
+
+# Data wrangling
+
+df_3 <- covid_survey_longer |>mutate(response = case_when(response == "resp_safety" ~ "Based on my understanding, I believe the vaccine is safe",
+                              response == "resp_feel_safe_at_work" ~ "Getting the vaccine will make me feel safer at work",
+                              response == "resp_concern_safety" ~ "I am concerned about the safety and side effects of the vaccine",
+                              response == "resp_confidence_science" ~ "I am confident in the scientific vetting process for the new COVID vaccines",
+                              response == "resp_trust_info" ~ "I trust the information that I have received about the vaccines",
+                              response == "resp_will_recommend" ~ "I will recommend the vaccine to family, friends, and community members")) |>
+  group_by(response,response_value) |>
+  summarise(count = n()) |> 
+  filter(!is.na(response_value))
+
+total_count <- df_3 |>
+  group_by(response) |>
+  summarise(count_total = sum(count))
+
+df_3 <- left_join(df_3, total_count, by = "response")
+
+df_3$perc <- round((df_3$count/df_3$count_total),3)
+
+df_3$response_value <- factor(df_3$response_value, levels = c("5","4","3","2","1"))
+
+# Plot 1  
+
+plot_1 <- ggplot(df_3, aes(x = str_wrap(response, width = 20) ,
+                           y = ifelse(response_value %in% c("1","2"), -perc,perc), 
+                 fill = response_value)) +
+  geom_col(width = 0.5) +
+  scale_fill_brewer(palette = "Set3") +
+  scale_y_continuous(labels = percent_format()) +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "",
+       y = "") +
+  theme(legend.position = "none",
+        strip.text.x = element_text(hjust = 0),
+        panel.grid.minor = element_blank())
+
+
+# Plot 2
+
+plot_2 <- ggplot(df_3, aes(x = str_wrap(response, width = 10), y = perc, fill = response_value)) +
+  geom_bar(stat = "identity", width = 0.5) +
+  labs(x = "",
+       y = "", 
+       fill = "Response") +
+  scale_fill_brewer(palette = "Set3") + 
+  scale_y_continuous(labels = percent_format()) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+
+# Combined Plot
+
+plot_1 + plot_2 +
+  plot_annotation(title = "Opinions towards COVID-19 vaccination",
+       caption = "Source: Johns Hopkins School of Medicine") +
+  plot_layout(guides = "collect") &
+  guides(fill = guide_legend(reverse=TRUE)) & 
+  theme_minimal() &
+  theme(legend.position = "top") &
+  labs(fill = "Response") 
+
+```
+
+
+The two charts are presenting the same dataset but in distinct ways. The diverging bar chart offers a clear view of how responses are distributed across statements and which categories hold more weight. It essentially splits the data into two groups, "against" and "for," where "against" values are less than neutral and "for" values are greater than neutral. This format allows us to easily determine which group, either "against" or "for," is dominant in the dataset.
+
+In contrast, the 100% bar chart is more suited for comparing the frequency of each response option across different statements. It provides a comprehensive look at how each response option stacks up against the others within each statement, offering a detailed perspective on the distribution of responses across all categories.
